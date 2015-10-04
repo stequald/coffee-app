@@ -12,23 +12,9 @@ import UIKit
 class AppDelegate: UIResponder, UIApplicationDelegate {
 
     var window: UIWindow?
-    var latestCoffeeArray:[AnyObject] = [];
-    var latestCoffeeImage:[String:UIImage] = [String:UIImage]();
     var coffeeModel:CoffeeModel? = nil
     let apiKey = "WuVbkuUsCXHPx3hsQzus4SE"
     var coffeeAPI:CoffeeAPI? = nil
-
-    func updateLocalCoffeeCache(coffeeArray:[AnyObject]) {
-        for coffee in coffeeArray {
-            self.coffeeModel!.setCoffee(Coffee(
-                id: coffee["id"] as! String,
-                name: coffee["name"] as! String,
-                desc: coffee["desc"] as! String,
-                imageUrl: coffee["image_url"] as! String
-                ))
-        }
-        self.coffeeModel!.saveLocalCachedCoffee()
-    }
 
     class func instance() -> AppDelegate {
         return UIApplication.sharedApplication().delegate as! (AppDelegate)
