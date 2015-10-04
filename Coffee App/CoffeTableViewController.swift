@@ -37,32 +37,36 @@ class CoffeTableViewController: UITableViewController {
     }
     
     func fetchCoffeeData() {
-        AppDelegate.instance().coffeeAPI!.getCoffeeList({
-            (jsonData: AnyObject!) in
-            
-            self.latestCoffeeArray = jsonData as! [AnyObject]
-            self.tableView.reloadData()
-            self.updateLocalCoffeeCache(self.latestCoffeeArray)
-            }, failure: {
-                (code: NSInteger, status: String!) in
-                
-                let coffeeArray = AppDelegate.instance().coffeeModel?.getCoffeeArray()
-                for coffee in coffeeArray! {
-                    self.latestCoffeeArray.append([
-                        "id": coffee.id,
-                        "name": coffee.name,
-                        "desc": coffee.desc,
-                        "image_url": coffee.imageUrl,
-                        ])
-                    
-                    if let imageData = AppDelegate.instance().coffeeModel?.getCoffeeImageData(coffee.id) {
-                        self.latestCoffeeImage[coffee.id] = UIImage(data: imageData)!.rescaleImageWithinHeight(self.COFFEE_THUMBNAIL_MAX_SCALE_HEIGHT)
-                    }
+        dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0)) {
+            AppDelegate.instance().coffeeAPI!.getCoffeeList({
+                (jsonData: AnyObject!) in
+                self.latestCoffeeArray = jsonData as! [AnyObject]
+                dispatch_async(dispatch_get_main_queue()) {
+                    self.tableView.reloadData()
                 }
-                self.tableView.reloadData()
-        })
+                self.updateLocalCoffeeCache(self.latestCoffeeArray)
+                }, failure: {
+                    (code: NSInteger, status: String!) in
+                    
+                    let coffeeArray = AppDelegate.instance().coffeeModel?.getCoffeeArray()
+                    for coffee in coffeeArray! {
+                        self.latestCoffeeArray.append([
+                            "id": coffee.id,
+                            "name": coffee.name,
+                            "desc": coffee.desc,
+                            "image_url": coffee.imageUrl,
+                            ])
+                        
+                        if let imageData = AppDelegate.instance().coffeeModel?.getCoffeeImageData(coffee.id) {
+                            self.latestCoffeeImage[coffee.id] = UIImage(data: imageData)!.rescaleImageWithinHeight(self.COFFEE_THUMBNAIL_MAX_SCALE_HEIGHT)
+                        }
+                    }
+                    dispatch_async(dispatch_get_main_queue()) {
+                        self.tableView.reloadData()
+                    }
+            })
+        }
     }
-    
     
     func updateLocalCoffeeCache(coffeeArray:[AnyObject]) {
         for coffee in coffeeArray {
@@ -111,20 +115,25 @@ class CoffeTableViewController: UITableViewController {
         if self.latestCoffeeImage[id] != nil {
             cell!.coffeeImageView!.image = self.latestCoffeeImage[id]!.rescaleImageWithinHeight(self.COFFEE_THUMBNAIL_MAX_SCALE_HEIGHT)
         } else if imageUrl != "" {
-           cell!.coffeeImageView!.setImageWithURLRequest(NSURLRequest(URL: NSURL(string: imageUrl)!), placeholderImage: UIImage(),
-                success: { (urlRequest: NSURLRequest!, HTTPURLResponse: NSHTTPURLResponse!, image:UIImage!) -> Void in
-                    self.latestCoffeeImage[id] = image.rescaleImageWithinHeight(self.COFFEE_THUMBNAIL_MAX_SCALE_HEIGHT)
-                    cell!.coffeeImageView!.image = image
-                    self.tableView.reloadData()
-
-                    AppDelegate.instance().coffeeModel!.setCoffeeImage(CoffeeImage(id: id,
-                        imageData: UIImageJPEGRepresentation(image, 1)!))
-                    AppDelegate.instance().coffeeModel!.savelocalCachedCoffeeImage()
-                }) { (urlRequest: NSURLRequest!, HTTPURLResponse: NSHTTPURLResponse!, error: NSError!) -> Void in
-                    if let imageData = AppDelegate.instance().coffeeModel!.getCoffeeImageData(id) {
-                        cell!.coffeeImageView!.image = UIImage(data: imageData)!.rescaleImageWithinHeight(self.COFFEE_THUMBNAIL_MAX_SCALE_HEIGHT)
-                        self.tableView.reloadData()
-                    }
+            dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0)) {
+                cell!.coffeeImageView!.setImageWithURLRequest(NSURLRequest(URL: NSURL(string: imageUrl)!), placeholderImage: UIImage(),
+                    success: { (urlRequest: NSURLRequest!, HTTPURLResponse: NSHTTPURLResponse!, image:UIImage!) -> Void in
+                        self.latestCoffeeImage[id] = image.rescaleImageWithinHeight(self.COFFEE_THUMBNAIL_MAX_SCALE_HEIGHT)
+                        dispatch_async(dispatch_get_main_queue()) {
+                            cell!.coffeeImageView!.image = image
+                            self.tableView.reloadData()
+                        }
+                        AppDelegate.instance().coffeeModel!.setCoffeeImage(CoffeeImage(id: id,
+                            imageData: UIImageJPEGRepresentation(image, 1)!))
+                        AppDelegate.instance().coffeeModel!.savelocalCachedCoffeeImage()
+                    }) { (urlRequest: NSURLRequest!, HTTPURLResponse: NSHTTPURLResponse!, error: NSError!) -> Void in
+                        if let imageData = AppDelegate.instance().coffeeModel!.getCoffeeImageData(id) {
+                            dispatch_async(dispatch_get_main_queue()) {
+                                cell!.coffeeImageView!.image = UIImage(data: imageData)!.rescaleImageWithinHeight(self.COFFEE_THUMBNAIL_MAX_SCALE_HEIGHT)
+                                self.tableView.reloadData()
+                            }
+                        }
+                }
             }
         } else {
             if let imageData = AppDelegate.instance().coffeeModel!.getCoffeeImageData(id) {

@@ -12,7 +12,6 @@ class CoffeeDetailTableViewController: UITableViewController {
     
     var coffeeID:String? = nil
     var coffeeName:String? = nil
-    var coffeeDetailObject:Dictionary<String, String>? = nil
 
     override func prefersStatusBarHidden() -> Bool {
         return true;
@@ -79,65 +78,71 @@ class CoffeeDetailTableViewController: UITableViewController {
                 return cell!
             }
 
-            AppDelegate.instance().coffeeAPI!.getCoffeeDetails(self.coffeeID!, success: {
-                (jsonData: AnyObject!) in
-                NSLog("jsonDatajsonData \(jsonData.description)")
-                self.coffeeDetailObject = jsonData as? Dictionary<String, String>
-                cell!.descriptionLabel?.text = jsonData["desc"] as? String
-                cell!.descriptionLabel?.sizeToFit()
-                
-                var imageUrl = jsonData["image_url"] as? String
-                imageUrl = imageUrl!.replace("http://", withString:"https://")
-                
-                let dateFormatter = NSDateFormatter()
-                dateFormatter.dateFormat =  "yyyy-MM-dd HH:mm:ss.SSSSSS"
-                let date = dateFormatter.dateFromString(jsonData["last_updated_at"] as! String)
-                cell!.lastUpdatedLabel?.text = "Updated " + date!.timeAgo()
-                tableView.reloadData()
-                AppDelegate.instance().coffeeModel!.setCoffeeDetail(CoffeeDetail(
-                    id: self.coffeeID!,
-                    name: jsonData["name"] as! String,
-                    desc: jsonData["desc"] as! String,
-                    imageUrl: imageUrl!,
-                    dateUpdated: date!)
-                )
-                AppDelegate.instance().coffeeModel!.savelocalCachedCoffeeDetail()
-                
-                if imageUrl != nil && imageUrl != "" {
-                    let url = NSURL(string: imageUrl!)!
-                    let imageGetManager = AFHTTPRequestOperationManager()
-                    imageGetManager.responseSerializer = AFImageResponseSerializer()
-                    imageGetManager.GET(url.absoluteString,
-                        parameters:nil,
-                        success:{(operation:AFHTTPRequestOperation!, responseObject:AnyObject!) in
-                            
-                            cell!.coffeeImageView?.image = responseObject as? UIImage
-                            AppDelegate.instance().coffeeModel!.setCoffeeImage(CoffeeImage(id: self.coffeeID!,
-                                imageData: UIImageJPEGRepresentation(cell!.coffeeImageView!.image!, 1)!))
-                            AppDelegate.instance().coffeeModel!.savelocalCachedCoffeeDetail()
-                            
-                            tableView.reloadData()
-                            
-                        } ,
-                        failure:{(operation:AFHTTPRequestOperation!, error:NSError!) in
-                            if let imageData = AppDelegate.instance().coffeeModel!.getCoffeeImageData(self.coffeeID!) {
-                                cell!.coffeeImageView?.image = UIImage(data: imageData)
-                                tableView.reloadData()
-                            }
-                    })
-                }
-                }, failure: {
-                    (code: NSInteger, status: String!) in
-                    if let coffeeDetail = AppDelegate.instance().coffeeModel?.getCoffeeDetail(self.coffeeID!) {
-                        if let coffeeImageData = AppDelegate.instance().coffeeModel?.getCoffeeImageData(self.coffeeID!) {
-                            cell!.coffeeImageView?.image = UIImage(data: coffeeImageData)
-                        }
-                        cell!.descriptionLabel?.text = coffeeDetail.desc
+            dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0)) {
+                AppDelegate.instance().coffeeAPI!.getCoffeeDetails(self.coffeeID!, success: {
+                    (jsonData: AnyObject!) in
+                    let dateFormatter = NSDateFormatter()
+                    dateFormatter.dateFormat =  "yyyy-MM-dd HH:mm:ss.SSSSSS"
+                    let date = dateFormatter.dateFromString(jsonData["last_updated_at"] as! String)
+
+                    dispatch_async(dispatch_get_main_queue()) {
+                        cell!.descriptionLabel?.text = jsonData["desc"] as? String
                         cell!.descriptionLabel?.sizeToFit()
-                        cell!.lastUpdatedLabel?.text = "Updated " + coffeeDetail.dateUpdated.timeAgo()
+                        cell!.lastUpdatedLabel?.text = "Updated " + date!.timeAgo()
                         tableView.reloadData()
                     }
-            })
+        
+                    var imageUrl = jsonData["image_url"] as? String
+                    imageUrl = imageUrl!.replace("http://", withString:"https://")
+                    
+                    AppDelegate.instance().coffeeModel!.setCoffeeDetail(CoffeeDetail(
+                        id: self.coffeeID!,
+                        name: jsonData["name"] as! String,
+                        desc: jsonData["desc"] as! String,
+                        imageUrl: imageUrl!,
+                        dateUpdated: date!)
+                    )
+                    AppDelegate.instance().coffeeModel!.savelocalCachedCoffeeDetail()
+                    
+                    if imageUrl != nil && imageUrl != "" {
+                        let url = NSURL(string: imageUrl!)!
+                        let imageGetManager = AFHTTPRequestOperationManager()
+                        imageGetManager.responseSerializer = AFImageResponseSerializer()
+                        imageGetManager.GET(url.absoluteString,
+                            parameters:nil,
+                            success:{(operation:AFHTTPRequestOperation!, responseObject:AnyObject!) in
+                                dispatch_async(dispatch_get_main_queue()) {
+                                    cell!.coffeeImageView?.image = responseObject as? UIImage
+                                    AppDelegate.instance().coffeeModel!.setCoffeeImage(CoffeeImage(id: self.coffeeID!,
+                                        imageData: UIImageJPEGRepresentation(cell!.coffeeImageView!.image!, 1)!))
+                                    AppDelegate.instance().coffeeModel!.savelocalCachedCoffeeDetail()
+                                    tableView.reloadData()
+                                }
+                            } ,
+                            failure:{(operation:AFHTTPRequestOperation!, error:NSError!) in
+                                dispatch_async(dispatch_get_main_queue()) {
+                                    if let imageData = AppDelegate.instance().coffeeModel!.getCoffeeImageData(self.coffeeID!) {
+                                        cell!.coffeeImageView?.image = UIImage(data: imageData)
+                                        tableView.reloadData()
+                                    }
+                                }
+                        })
+                    }
+                    }, failure: {
+                        (code: NSInteger, status: String!) in
+                        dispatch_async(dispatch_get_main_queue()) {
+                            if let coffeeDetail = AppDelegate.instance().coffeeModel?.getCoffeeDetail(self.coffeeID!) {
+                                if let coffeeImageData = AppDelegate.instance().coffeeModel?.getCoffeeImageData(self.coffeeID!) {
+                                    cell!.coffeeImageView?.image = UIImage(data: coffeeImageData)
+                                }
+                                cell!.descriptionLabel?.text = coffeeDetail.desc
+                                cell!.descriptionLabel?.sizeToFit()
+                                cell!.lastUpdatedLabel?.text = "Updated " + coffeeDetail.dateUpdated.timeAgo()
+                                tableView.reloadData()
+                            }
+                        }
+                })
+            }
             
             return cell!
         }
