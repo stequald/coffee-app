@@ -11,7 +11,6 @@ import UIKit
 class CoffeTableViewController: UITableViewController {
 
     var selectedCoffeeIdx = 0
-    var imageViewConstraints:[String:NSLayoutConstraint] = [String:NSLayoutConstraint]()
     var latestCoffeeArray:[AnyObject] = [];
     var latestCoffeeImage:[String:UIImage] = [String:UIImage]();
     let COFFEE_THUMBNAIL_MAX_SCALE_HEIGHT:CGFloat = 200.0

@@ -125,8 +125,6 @@ class CoffeeDetailTableViewController: UITableViewController {
                                 tableView.reloadData()
                             }
                     })
-                } else {
-                    
                 }
                 }, failure: {
                     (code: NSInteger, status: String!) in
